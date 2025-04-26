@@ -1,5 +1,4 @@
 package com.example.smartduino
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -29,9 +28,6 @@ class BottomSheetDialog : BottomSheetDialogFragment() {
                 "First Button Clicked", Toast.LENGTH_SHORT
             ).show()
 
-            // Запускаем новую активность
-           // val intent = Intent(requireActivity(), ////::class.java)
-           // startActivity(intent)
 
             // Закрываем BottomSheet
             dismiss()
@@ -42,6 +38,8 @@ class BottomSheetDialog : BottomSheetDialogFragment() {
                 activity,
                 "Second Button Clicked", Toast.LENGTH_SHORT
             ).show()
+            val addRoomFragment = AddRoomFragment()
+            addRoomFragment.show(parentFragmentManager, "ModalBottomSheet")
             dismiss()
         }
         return v

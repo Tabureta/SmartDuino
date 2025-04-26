@@ -19,15 +19,6 @@
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light">
 
 
-        <TextView
-            android:id="@+id/textWelcome"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_gravity="start"
-            android:gravity="center_vertical"
-            android:textSize="15sp"
-            android:text="Добро пожаловать "
-            />
         <!-- Кнопка добавления -->
         <ImageView
             android:id="@+id/button_add"
@@ -40,6 +31,15 @@
 
     </androidx.appcompat.widget.Toolbar>
 
+    <TextView
+        android:id="@+id/textWelcome"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_gravity="start"
+        android:gravity="center_vertical"
+        android:text="Добро пожаловать "
+        android:textSize="15sp" />
+
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -48,6 +48,10 @@
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@null"
+            android:elevation="0dp"
+            app:elevation="0dp"
+            app:tabIndicatorHeight="0dp"
             app:tabIndicatorColor="@android:color/holo_blue_light"/>
 
     </com.google.android.material.appbar.AppBarLayout>
