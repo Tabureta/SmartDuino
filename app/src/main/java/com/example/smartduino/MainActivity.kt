@@ -1,5 +1,6 @@
 package com.example.smartduino
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
@@ -10,13 +11,17 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.viewpager2.widget.ViewPager2
 import com.example.smartduino.ObjectBox.store
+import com.example.smartduino.adapters.ViewPagerAdapter
+import com.example.smartduino.bottomdialog.AddMenuFragment
 import com.example.smartduino.entities.Room
+import com.example.smartduino.interfaces.OnRoomAddedListener
+import com.example.smartduino.supactivities.SettingsActivity
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import io.objectbox.kotlin.boxFor
 
 
-class MainActivity : AppCompatActivity(), AddRoomFragment.OnRoomAddedListener {
+class MainActivity : AppCompatActivity(), OnRoomAddedListener {
     private lateinit var viewPager: ViewPager2
     private lateinit var tabLayout: TabLayout
 
@@ -24,7 +29,6 @@ class MainActivity : AppCompatActivity(), AddRoomFragment.OnRoomAddedListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setupEdgeToEdge()
-
 
         // Инициализация ObjectBox
         ObjectBox.init(this)
@@ -60,10 +64,13 @@ class MainActivity : AppCompatActivity(), AddRoomFragment.OnRoomAddedListener {
         findViewById<View>(R.id.button_add).setOnClickListener {
             showAddRoomDialog()
         }
+        findViewById<View>(R.id.button_settings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 
     private fun showAddRoomDialog() {
-        BottomSheetDialog().apply {
+        AddMenuFragment().apply {
             show(supportFragmentManager, "BottomSheetDialogSheet")
         }
     }

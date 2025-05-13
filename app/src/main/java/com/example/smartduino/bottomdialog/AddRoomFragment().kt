@@ -1,4 +1,4 @@
-package com.example.smartduino
+package com.example.smartduino.bottomdialog
 
 import android.content.Context
 import android.os.Bundle
@@ -8,15 +8,14 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import com.example.smartduino.ObjectBox.store
+import com.example.smartduino.interfaces.OnRoomAddedListener
+import com.example.smartduino.R
 import com.example.smartduino.entities.Room
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import io.objectbox.kotlin.boxFor
 
 class AddRoomFragment : BottomSheetDialogFragment() {
 
-    interface OnRoomAddedListener {
-        fun onRoomAdded()
-    }
 
     private var roomAddedListener: OnRoomAddedListener? = null
 

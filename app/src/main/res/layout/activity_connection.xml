@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/сonnectionActivity"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".supactivities.ConnectionActivity">
+
+    <!-- Контейнер для волн -->
+    <FrameLayout
+    android:id="@+id/waveContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
+
+    <!-- Центральная кнопка -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/centerButton"
+            android:layout_width="99dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:backgroundTint="#C4C5C5C5"
+            android:text="GO"
+            android:textColor="#C4FFFFFF"
+            app:cornerRadius="50dp"
+            app:elevation="12dp" />
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

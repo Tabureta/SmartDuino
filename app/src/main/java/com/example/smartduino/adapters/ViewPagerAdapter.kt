@@ -1,4 +1,4 @@
-package com.example.smartduino
+package com.example.smartduino.adapters
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity

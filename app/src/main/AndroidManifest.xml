@@ -26,7 +26,13 @@
         android:theme="@style/Theme.SmartDuino"
         tools:targetApi="31">
         <activity
-            android:name=".WelcomeActivity"
+            android:name=".supactivities.SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".supactivities.ConnectionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".supactivities.WelcomeActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

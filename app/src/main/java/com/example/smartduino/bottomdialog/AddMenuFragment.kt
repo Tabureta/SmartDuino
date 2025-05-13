@@ -1,20 +1,21 @@
-package com.example.smartduino
+package com.example.smartduino.bottomdialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.Toast
+import com.example.smartduino.R
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-class BottomSheetDialog : BottomSheetDialogFragment() {
+class AddMenuFragment : BottomSheetDialogFragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val v: View = inflater.inflate(
-            R.layout.bottom_sheet_layout,
+            R.layout.add_menu_fragment,
             container, false
         )
 
@@ -22,14 +23,12 @@ class BottomSheetDialog : BottomSheetDialogFragment() {
         val create_room_button = v.findViewById<Button>(R.id.create_room)
 
         connect_devices_button.setOnClickListener {
-            // Показываем Toast
             Toast.makeText(
                 activity,
                 "First Button Clicked", Toast.LENGTH_SHORT
             ).show()
-
-
-            // Закрываем BottomSheet
+            val addDeviceFragment = AddDeviceFragment()
+            addDeviceFragment.show(parentFragmentManager, "ModalBottomSheet")
             dismiss()
         }
 

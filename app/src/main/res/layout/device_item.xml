@@ -2,12 +2,35 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:padding="8dp">
 
-    android:gravity="center_vertical">
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_margin="4dp"
+        android:layout_weight="1"
+        android:elevation="4dp"
+        app:cardCornerRadius="8dp"
+        app:cardUseCompatPadding="true">
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Курлык"/>
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:foreground="?attr/selectableItemBackground">
+
+            <TextView
+                android:id="@+id/textView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="Курлык"
+                android:textColor="@android:color/black"
+                android:textSize="16sp" />
+
+        </FrameLayout>
+
+    </androidx.cardview.widget.CardView>
+
 </FrameLayout>
