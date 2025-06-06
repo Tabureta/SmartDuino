@@ -5,6 +5,7 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.pm.PackageManager
 import android.os.*
+import android.util.Log
 import android.view.*
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.*
@@ -18,6 +19,14 @@ import java.util.*
 
 class ConnectionActivity : AppCompatActivity() {
 
+    companion object {
+        const val EXTRA_DEVICE_TYPE = "extra_device_type"
+        const val DEVICE_TYPE_HUB = "hub"
+        const val DEVICE_TYPE_NODE = "node"
+    }
+
+    private lateinit var deviceType: String
+
     private val waveViews = mutableListOf<View>()
     private val handler = Handler(Looper.getMainLooper())
     private var isAnimating = false
@@ -26,12 +35,21 @@ class ConnectionActivity : AppCompatActivity() {
     private lateinit var bleScanner: BluetoothLeScanner
     private var bluetoothGatt: BluetoothGatt? = null
 
-    private val serviceUUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb") // пример UUID
-    private val characteristicUUID = UUID.fromString("00002A37-0000-1000-8000-00805f9b34fb")
+    private val wifiServiceUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
+    private val ssidUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
+    private val passUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
+
+    private val configServiceUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdefabcdef")
+    private val deviceNameUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff1")
+    private val serverUrlUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff2")
+    private val tokenUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff3")
+    private val controlSignalUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff4")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_connection)
+
+        deviceType = intent.getStringExtra(EXTRA_DEVICE_TYPE) ?: DEVICE_TYPE_NODE
 
         bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
         bleScanner = bluetoothAdapter.bluetoothLeScanner
@@ -83,39 +101,63 @@ class ConnectionActivity : AppCompatActivity() {
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                Log.d("BLE", "Подключено. Ищем сервисы...")
+                bluetoothGatt = gatt
                 gatt.discoverServices()
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            runOnUiThread {
-                showWiFiInputDialog(gatt)
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d("BLE", "Сервисы найдены")
+
+                when (deviceType) {
+                    DEVICE_TYPE_HUB -> showFullConfigDialog(gatt)
+                    DEVICE_TYPE_NODE -> sendNodeSignal(gatt)
+                }
+            } else {
+                Log.e("BLE", "Ошибка при поиске сервисов: $status")
             }
         }
     }
 
-    private fun showWiFiInputDialog(gatt: BluetoothGatt) {
+    private fun showFullConfigDialog(gatt: BluetoothGatt) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_wifi_input, null)
         val ssidInput = dialogView.findViewById<EditText>(R.id.ssidInput)
         val passInput = dialogView.findViewById<EditText>(R.id.passwordInput)
 
         AlertDialog.Builder(this)
-            .setTitle("Подключение к Wi-Fi")
+            .setTitle("Настройка подключения")
             .setView(dialogView)
             .setPositiveButton("Отправить") { _, _ ->
                 val ssid = ssidInput.text.toString()
                 val password = passInput.text.toString()
-                sendWiFiCredentials(gatt, ssid, password)
+                val device = "ESP32_HUB"
+                val url = "http://example.com"
+                val token = "my_secret_token"
+
+                sendCharacteristic(gatt, wifiServiceUUID, ssidUUID, ssid)
+                sendCharacteristic(gatt, wifiServiceUUID, passUUID, password)
+                sendCharacteristic(gatt, configServiceUUID, deviceNameUUID, device)
+                sendCharacteristic(gatt, configServiceUUID, serverUrlUUID, url)
+                sendCharacteristic(gatt, configServiceUUID, tokenUUID, token)
+
+                Toast.makeText(this, "Данные отправлены на хаб", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Отмена", null)
             .show()
     }
 
-    private fun sendWiFiCredentials(gatt: BluetoothGatt, ssid: String, password: String) {
+    private fun sendNodeSignal(gatt: BluetoothGatt) {
+        val signal = "ACTIVATE"
+        sendCharacteristic(gatt, configServiceUUID, controlSignalUUID, signal)
+        Toast.makeText(this, "Сигнал отправлен устройству", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun sendCharacteristic(gatt: BluetoothGatt, serviceUUID: UUID, charUUID: UUID, value: String) {
         val service = gatt.getService(serviceUUID) ?: return
-        val characteristic = service.getCharacteristic(characteristicUUID) ?: return
-        val credentials = "$ssid|$password"
-        characteristic.value = credentials.toByteArray()
+        val characteristic = service.getCharacteristic(charUUID) ?: return
+        characteristic.setValue(value)
         gatt.writeCharacteristic(characteristic)
     }
 
@@ -180,3 +222,4 @@ class ConnectionActivity : AppCompatActivity() {
         bluetoothGatt?.close()
     }
 }
+
