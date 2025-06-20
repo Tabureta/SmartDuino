@@ -12,46 +12,36 @@ import com.example.smartduino.ObjectBox.store
 import com.example.smartduino.adapters.DeviceListAdapter
 import com.example.smartduino.bottomdialog.DeviceFragment
 import com.example.smartduino.entities.Device
-import com.example.smartduino.entities.Room
 import io.objectbox.kotlin.boxFor
 
-class RoomFragment : Fragment() {
+class AllDevicesFragment : Fragment() {
     companion object {
-        fun newInstance(roomId: Long): RoomFragment {
-            return RoomFragment().apply {
-                arguments = Bundle().apply {
-                    putLong("ROOM_ID", roomId)
-                }
-            }
-        }
+        fun newInstance() = AllDevicesFragment()
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_room, container, false)
-        val roomId = arguments?.getLong("ROOM_ID") ?: 0
+    ): View {
+        return inflater.inflate(R.layout.fragment_room, container, false)
+    }
 
-        // Получаем комнату из базы данных
-        val roomBox = store.boxFor<Room>()
-        val room = roomBox.get(roomId)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-        val devices = room.devices
-//        val device = Device(name = "Устройство"+roomId, type = "LIGHT")
-//        device.room.target = room
-//        store.boxFor<Device>().put(device)
+        // Получаем все устройства из базы данных
+        val deviceBox = store.boxFor<Device>()
+        val allDevices = deviceBox.query().build().find()
 
         val recyclerView: RecyclerView = view.findViewById(R.id.device_list_recycler_view)
         recyclerView.layoutManager = GridLayoutManager(requireContext(), 2)
 
-        recyclerView.adapter = DeviceListAdapter(devices) { device ->
+        recyclerView.adapter = DeviceListAdapter(allDevices) { device ->
             DeviceFragment.newInstance(device.id).show(
                 parentFragmentManager,
                 "device_fragment"
             )
         }
-
-        return view
     }
 }

@@ -44,13 +44,15 @@
         android:layout_width="match_parent"
         android:layout_height="54dp"
         android:layout_gravity="start"
+        android:layout_marginStart="10dp"
         android:gravity="center_vertical"
-        android:text="Добро пожаловать "
+        android:text="Добро пожаловать"
         android:textSize="15sp" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:background="?attr/android:colorBackground">
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"

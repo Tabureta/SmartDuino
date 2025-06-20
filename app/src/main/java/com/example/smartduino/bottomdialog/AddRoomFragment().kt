@@ -8,20 +8,24 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import com.example.smartduino.ObjectBox.store
-import com.example.smartduino.interfaces.OnRoomAddedListener
 import com.example.smartduino.R
 import com.example.smartduino.entities.Room
+import com.example.smartduino.interfaces.OnRoomAddedListener
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import io.objectbox.kotlin.boxFor
 
 class AddRoomFragment : BottomSheetDialogFragment() {
 
-
     private var roomAddedListener: OnRoomAddedListener? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Устанавливаем стиль для BottomSheet
+        setStyle(STYLE_NORMAL, R.style.AppBottomSheetDialogTheme)
+    }
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        // Проверяем, что активность реализует наш интерфейс
         roomAddedListener = context as? OnRoomAddedListener
     }
 
@@ -42,18 +46,25 @@ class AddRoomFragment : BottomSheetDialogFragment() {
                 return@setOnClickListener
             }
 
-            // Сохраняем новую комнату
             val newRoom = Room(name = roomName)
             store.boxFor<Room>().put(newRoom)
-
-            // Уведомляем активность о добавлении комнаты
             roomAddedListener?.onRoomAdded()
-
-            // Закрываем BottomSheet
             dismiss()
         }
 
         return v
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Устанавливаем фиксированную высоту после создания view
+        view.post {
+            val parent = view.parent as View
+            val params = parent.layoutParams
+            params.height = resources.getDimensionPixelSize(R.dimen.bottom_sheet_height)
+            parent.layoutParams = params
+        }
     }
 
     override fun onDetach() {

@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-
     <!-- Основные цвета -->
-    <color name="primary">#4CAF50</color>  <!-- Зеленый -->
+    <color name="primary">#AF4C4C</color>  <!-- Зеленый -->
     <color name="on_primary">#FFFFFF</color>
     <color name="primary_container">#C8E6C9</color>
     <color name="on_primary_container">#2E7D32</color>

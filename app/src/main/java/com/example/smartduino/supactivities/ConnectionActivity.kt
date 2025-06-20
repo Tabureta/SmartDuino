@@ -1,21 +1,42 @@
 package com.example.smartduino.supactivities
 
 import android.Manifest
-import android.bluetooth.*
-import android.bluetooth.le.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
+import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.os.*
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
-import android.view.*
+import android.view.Gravity
+import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.widget.*
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.smartduino.R
+import com.example.smartduino.entities.Device
+import com.example.smartduino.ObjectBox
+import com.example.smartduino.ObjectBox.store
 import com.google.android.material.button.MaterialButton
-import java.util.*
+import io.objectbox.kotlin.boxFor
+import java.util.UUID
 
 class ConnectionActivity : AppCompatActivity() {
 
@@ -23,48 +44,83 @@ class ConnectionActivity : AppCompatActivity() {
         const val EXTRA_DEVICE_TYPE = "extra_device_type"
         const val DEVICE_TYPE_HUB = "hub"
         const val DEVICE_TYPE_NODE = "node"
+        const val PREF_TEST_CONNECTION = "test_connection"
     }
-
+    private lateinit var waveAnimationHelper: WaveAnimationHelper
     private lateinit var deviceType: String
-
+    private lateinit var sharedPref: SharedPreferences
     private val waveViews = mutableListOf<View>()
     private val handler = Handler(Looper.getMainLooper())
     private var isAnimating = false
 
+    // BLE компоненты
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private lateinit var bleScanner: BluetoothLeScanner
     private var bluetoothGatt: BluetoothGatt? = null
 
+    // UUID сервисов и характеристик
     private val wifiServiceUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
     private val ssidUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
     private val passUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
-
     private val configServiceUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdefabcdef")
-    private val deviceNameUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff1")
-    private val serverUrlUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff2")
-    private val tokenUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff3")
-    private val controlSignalUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdeff4")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_connection)
 
         deviceType = intent.getStringExtra(EXTRA_DEVICE_TYPE) ?: DEVICE_TYPE_NODE
+        sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
-        bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
-        bleScanner = bluetoothAdapter.bluetoothLeScanner
+        // Инициализация BLE только если не в тестовом режиме
+        if (!isTestModeEnabled()) {
+            bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
+            bleScanner = bluetoothAdapter.bluetoothLeScanner
+        }
+        waveAnimationHelper = WaveAnimationHelper(
+            container = findViewById(R.id.waveContainer),
+            waveDrawableRes = R.drawable.wave_circle
+        )
 
         val centerButton = findViewById<MaterialButton>(R.id.centerButton)
         centerButton.setOnClickListener {
-            if (isAnimating) {
-                stopWaveAnimation()
+            if (waveAnimationHelper.isAnimating) {
+                waveAnimationHelper.stopWaveAnimation()
             } else {
-                startWaveAnimation()
-                checkPermissionsAndScan()
+                waveAnimationHelper.startWaveAnimation()
+                if (isTestModeEnabled()) {
+                    createTestDevice()
+                } else {
+                    checkPermissionsAndScan()
+                }
             }
         }
     }
 
+    private fun isTestModeEnabled(): Boolean {
+        Log.d("isTestModeEnabled", sharedPref.getBoolean(PREF_TEST_CONNECTION, false).toString())
+        return sharedPref.getBoolean(PREF_TEST_CONNECTION, false)
+    }
+
+    private fun createTestDevice() {
+        // Создаем тестовое устройство без реального подключения
+        val device = Device(
+            name = "Test ${deviceType.uppercase()}",
+            type = deviceType
+        )
+
+        store.boxFor<Device>().put(device)
+
+        Toast.makeText(
+            this,
+            "Тестовое устройство создано (${device.name})",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        waveAnimationHelper.stopWaveAnimation()
+        finish()
+    }
+
+    // Остальные методы остаются без изменений
     private fun checkPermissionsAndScan() {
         val permissions = arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
@@ -92,6 +148,7 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private val scanCallback = object : ScanCallback() {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             bleScanner.stopScan(this)
             result.device.connectGatt(this@ConnectionActivity, false, gattCallback)
@@ -99,6 +156,7 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.d("BLE", "Подключено. Ищем сервисы...")
@@ -138,11 +196,10 @@ class ConnectionActivity : AppCompatActivity() {
 
                 sendCharacteristic(gatt, wifiServiceUUID, ssidUUID, ssid)
                 sendCharacteristic(gatt, wifiServiceUUID, passUUID, password)
-                sendCharacteristic(gatt, configServiceUUID, deviceNameUUID, device)
-                sendCharacteristic(gatt, configServiceUUID, serverUrlUUID, url)
-                sendCharacteristic(gatt, configServiceUUID, tokenUUID, token)
 
-                Toast.makeText(this, "Данные отправлены на хаб", Toast.LENGTH_SHORT).show()
+
+                // Создаем устройство после успешной настройки
+                createRealDevice(device, DEVICE_TYPE_HUB)
             }
             .setNegativeButton("Отмена", null)
             .show()
@@ -150,10 +207,24 @@ class ConnectionActivity : AppCompatActivity() {
 
     private fun sendNodeSignal(gatt: BluetoothGatt) {
         val signal = "ACTIVATE"
-        sendCharacteristic(gatt, configServiceUUID, controlSignalUUID, signal)
-        Toast.makeText(this, "Сигнал отправлен устройству", Toast.LENGTH_SHORT).show()
+
+        // Создаем устройство после отправки сигнала
+        createRealDevice("ESP32_NODE", DEVICE_TYPE_NODE)
     }
 
+    private fun createRealDevice(name: String, type: String) {
+        val device = Device(
+            name = name,
+            type = type
+        )
+
+        store.boxFor<Device>().put(device)
+        Toast.makeText(this, "Устройство $name создано", Toast.LENGTH_SHORT).show()
+        waveAnimationHelper.stopWaveAnimation()
+        finish()
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun sendCharacteristic(gatt: BluetoothGatt, serviceUUID: UUID, charUUID: UUID, value: String) {
         val service = gatt.getService(serviceUUID) ?: return
         val characteristic = service.getCharacteristic(charUUID) ?: return
@@ -161,65 +232,10 @@ class ConnectionActivity : AppCompatActivity() {
         gatt.writeCharacteristic(characteristic)
     }
 
-    private fun startWaveAnimation() {
-        isAnimating = true
-        handler.post(waveRunnable)
-    }
-
-    private fun stopWaveAnimation() {
-        isAnimating = false
-        handler.removeCallbacks(waveRunnable)
-        clearWaves()
-    }
-
-    private val waveRunnable = object : Runnable {
-        override fun run() {
-            createWave()
-            if (isAnimating) {
-                handler.postDelayed(this, 800)
-            }
-        }
-    }
-
-    private fun createWave() {
-        val waveView = ImageView(this).apply {
-            setImageResource(R.drawable.wave_circle)
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply { gravity = Gravity.CENTER }
-            scaleX = 0.2f
-            scaleY = 0.2f
-            alpha = 0.8f
-        }
-
-        val container = findViewById<FrameLayout>(R.id.waveContainer)
-        container.addView(waveView)
-        waveViews.add(waveView)
-
-        waveView.animate()
-            .scaleX(4f)
-            .scaleY(4f)
-            .alpha(0f)
-            .setDuration(1000)
-            .setInterpolator(AccelerateDecelerateInterpolator())
-            .withEndAction {
-                container.removeView(waveView)
-                waveViews.remove(waveView)
-            }
-            .start()
-    }
-
-    private fun clearWaves() {
-        val container = findViewById<FrameLayout>(R.id.waveContainer)
-        waveViews.forEach { container.removeView(it) }
-        waveViews.clear()
-    }
-
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     override fun onDestroy() {
         super.onDestroy()
-        stopWaveAnimation()
+        waveAnimationHelper.stopWaveAnimation()
         bluetoothGatt?.close()
     }
 }
-

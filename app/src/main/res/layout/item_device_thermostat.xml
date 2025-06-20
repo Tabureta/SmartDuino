@@ -26,6 +26,8 @@
             android:id="@+id/deviceName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textAlignment="center"
             android:textSize="16sp"/>
 
         <TextView

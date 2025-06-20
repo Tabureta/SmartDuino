@@ -58,4 +58,15 @@ class AddMenuFragment : BottomSheetDialogFragment() {
         }
         return v
     }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Устанавливаем фиксированную высоту после создания view
+        view.post {
+            val parent = view.parent as View
+            val params = parent.layoutParams
+            params.height = resources.getDimensionPixelSize(R.dimen.bottom_sheet_height)
+            parent.layoutParams = params
+        }
+    }
 }

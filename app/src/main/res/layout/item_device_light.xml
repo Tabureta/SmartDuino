@@ -26,12 +26,22 @@
             android:id="@+id/deviceName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textAlignment="center"
             android:textSize="16sp"/>
 
         <Switch
             android:id="@+id/deviceSwitch"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"/>
 
+        <TextView
+            android:id="@+id/switchPosition"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textAlignment="center"
+            android:textSize="16sp"/>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
