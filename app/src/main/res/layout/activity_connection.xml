@@ -8,18 +8,20 @@
     android:layout_height="match_parent"
     tools:context=".supactivities.ConnectionActivity">
 
+    <!-- Бесцветный (прозрачный) Toolbar -->
+
     <!-- Контейнер для волн -->
     <FrameLayout
-    android:id="@+id/waveContainer"
+        android:id="@+id/waveContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-    android:background="#FFFFFF"
-    app:layout_constraintBottom_toBottomOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent">
+        android:background="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <!-- Центральная кнопка -->
+        <!-- Центральная кнопка -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/centerButton"
             android:layout_width="99dp"
@@ -30,6 +32,13 @@
             android:textColor="#C4FFFFFF"
             app:cornerRadius="50dp"
             app:elevation="12dp" />
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
+            android:elevation="0dp" />
     </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

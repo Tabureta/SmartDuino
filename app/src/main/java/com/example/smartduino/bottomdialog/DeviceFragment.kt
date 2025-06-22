@@ -154,7 +154,7 @@ class DeviceFragment : BottomSheetDialogFragment() {
         store.boxFor<Device>().remove(device.id)
 
         // Уведомление о удалении
-        (parentFragment as? OnDeviceChangeListener)?.onDeviceChanged()
+        deviceChangeListener?.onDeviceChanged()
 
         // Закрытие BottomSheet
         dismiss()

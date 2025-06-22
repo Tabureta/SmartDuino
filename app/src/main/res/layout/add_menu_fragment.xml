@@ -15,25 +15,37 @@
         android:text="Выберите: "
         android:textSize="25sp" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/connect_hub"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:text="Подключить хаб" />
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Подключить хаб"
+        android:textColor="?attr/colorPrimary"
+        app:iconTint="?attr/colorPrimary"
+        app:strokeColor="?attr/colorPrimary"
+        app:strokeWidth="1dp"/>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/connect_devices"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:text="Подключить устройство" />
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Подключить устройство"
+        android:textColor="?attr/colorPrimary"
+        app:iconTint="?attr/colorPrimary"
+        app:strokeColor="?attr/colorPrimary"
+        app:strokeWidth="1dp"/>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/create_room"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:text="создать комнату" />
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Создать комнату"
+        android:textColor="?attr/colorPrimary"
+        app:iconTint="?attr/colorPrimary"
+        app:strokeColor="?attr/colorPrimary"
+        app:strokeWidth="1dp"/>
 
 </LinearLayout>

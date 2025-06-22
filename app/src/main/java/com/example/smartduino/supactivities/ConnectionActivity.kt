@@ -12,6 +12,7 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -28,12 +29,15 @@ import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.smartduino.MainActivity
 import com.example.smartduino.R
 import com.example.smartduino.entities.Device
 import com.example.smartduino.ObjectBox
 import com.example.smartduino.ObjectBox.store
+import com.example.smartduino.bottomdialog.DeviceFragment
 import com.google.android.material.button.MaterialButton
 import io.objectbox.kotlin.boxFor
 import java.util.UUID
@@ -42,16 +46,13 @@ class ConnectionActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_DEVICE_TYPE = "extra_device_type"
-        const val DEVICE_TYPE_HUB = "hub"
+        const val DEVICE_TYPE_HUB = "HUB"
         const val DEVICE_TYPE_NODE = "node"
         const val PREF_TEST_CONNECTION = "test_connection"
     }
     private lateinit var waveAnimationHelper: WaveAnimationHelper
     private lateinit var deviceType: String
     private lateinit var sharedPref: SharedPreferences
-    private val waveViews = mutableListOf<View>()
-    private val handler = Handler(Looper.getMainLooper())
-    private var isAnimating = false
 
     // BLE компоненты
     private lateinit var bluetoothAdapter: BluetoothAdapter
@@ -71,6 +72,7 @@ class ConnectionActivity : AppCompatActivity() {
         deviceType = intent.getStringExtra(EXTRA_DEVICE_TYPE) ?: DEVICE_TYPE_NODE
         sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
+        setupToolbar()
         // Инициализация BLE только если не в тестовом режиме
         if (!isTestModeEnabled()) {
             bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
@@ -101,8 +103,26 @@ class ConnectionActivity : AppCompatActivity() {
         return sharedPref.getBoolean(PREF_TEST_CONNECTION, false)
     }
 
+    private fun setupToolbar() {
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+        // Устанавливаем заголовок в зависимости от типа устройства
+        val title = when (deviceType) {
+            DEVICE_TYPE_HUB -> "Подключение хаба"
+            DEVICE_TYPE_NODE -> "Подключение устройства"
+            else -> "Подключение"
+        }
+        supportActionBar?.title = title
+
+        // Обработка нажатия на стрелку назад
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
     private fun createTestDevice() {
-        // Создаем тестовое устройство без реального подключения
         val device = Device(
             name = "Test ${deviceType.uppercase()}",
             type = deviceType
@@ -117,7 +137,7 @@ class ConnectionActivity : AppCompatActivity() {
         ).show()
 
         waveAnimationHelper.stopWaveAnimation()
-        finish()
+        showDeviceFragment(device.id) // Заменяем finish() на открытие фрагмента
     }
 
     // Остальные методы остаются без изменений
@@ -221,7 +241,14 @@ class ConnectionActivity : AppCompatActivity() {
         store.boxFor<Device>().put(device)
         Toast.makeText(this, "Устройство $name создано", Toast.LENGTH_SHORT).show()
         waveAnimationHelper.stopWaveAnimation()
-        finish()
+        showDeviceFragment(device.id)
+    }
+
+    private fun showDeviceFragment(deviceId: Long) {
+        DeviceFragment.newInstance(deviceId).show(
+            supportFragmentManager,
+            "device_fragment"
+        )
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)

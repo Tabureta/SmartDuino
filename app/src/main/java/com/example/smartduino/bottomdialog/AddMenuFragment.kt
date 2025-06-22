@@ -6,9 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.Toast
+import com.example.smartduino.ObjectBox.store
 import com.example.smartduino.R
+import com.example.smartduino.entities.Device
 import com.example.smartduino.supactivities.ConnectionActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import io.objectbox.kotlin.boxFor
 
 class AddMenuFragment : BottomSheetDialogFragment() {
     override fun onCreateView(
@@ -25,43 +28,70 @@ class AddMenuFragment : BottomSheetDialogFragment() {
         val connect_devices_button = v.findViewById<Button>(R.id.connect_devices)
         val create_room_button = v.findViewById<Button>(R.id.create_room)
 
+        // Проверяем наличие хабов при создании фрагмента
+        checkHubAvailability(connect_devices_button)
+
         connect_hub_button.setOnClickListener {
             Toast.makeText(
                 activity,
-                "First Button Clicked", Toast.LENGTH_SHORT
+                "Подключение хаба", Toast.LENGTH_SHORT
             ).show()
             dismiss()
-            val intent = Intent(getActivity(), ConnectionActivity::class.java)
+            val intent = Intent(requireActivity(), ConnectionActivity::class.java)
             intent.putExtra(ConnectionActivity.EXTRA_DEVICE_TYPE, ConnectionActivity.DEVICE_TYPE_HUB)
             startActivity(intent)
         }
 
         connect_devices_button.setOnClickListener {
-            Toast.makeText(
-                activity,
-                "Second Button Clicked", Toast.LENGTH_SHORT
-            ).show()
-            dismiss()
-            val intent = Intent(getActivity(), ConnectionActivity::class.java)
-            intent.putExtra(ConnectionActivity.EXTRA_DEVICE_TYPE, ConnectionActivity.DEVICE_TYPE_HUB)
-            startActivity(intent)
+            if (hasAtLeastOneHub()) {
+                Toast.makeText(
+                    activity,
+                    "Подключение устройства", Toast.LENGTH_SHORT
+                ).show()
+                dismiss()
+                val intent = Intent(requireActivity(), ConnectionActivity::class.java)
+                intent.putExtra(ConnectionActivity.EXTRA_DEVICE_TYPE, ConnectionActivity.DEVICE_TYPE_NODE)
+                startActivity(intent)
+            } else {
+                Toast.makeText(
+                    activity,
+                    "Сначала добавьте хаб", Toast.LENGTH_LONG
+                ).show()
+            }
         }
 
         create_room_button.setOnClickListener {
             Toast.makeText(
                 activity,
-                "Third Button Clicked", Toast.LENGTH_SHORT
+                "Создание комнаты", Toast.LENGTH_SHORT
             ).show()
             val addRoomFragment = AddRoomFragment()
             addRoomFragment.show(parentFragmentManager, "ModalBottomSheet")
             dismiss()
         }
+
         return v
     }
+
+    private fun checkHubAvailability(devicesButton: Button) {
+        if (!hasAtLeastOneHub()) {
+            devicesButton.alpha = 0.5f // Делаем кнопку полупрозрачной
+            devicesButton.isEnabled = false // Отключаем кнопку
+        } else {
+            devicesButton.alpha = 1f
+            devicesButton.isEnabled = true
+        }
+    }
+
+    private fun hasAtLeastOneHub(): Boolean {
+        // Получаем список устройств и проверяем есть ли среди них хаб
+        val devices = store.boxFor<Device>().all
+        return devices.any { it.type == ConnectionActivity.DEVICE_TYPE_HUB }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Устанавливаем фиксированную высоту после создания view
         view.post {
             val parent = view.parent as View
             val params = parent.layoutParams

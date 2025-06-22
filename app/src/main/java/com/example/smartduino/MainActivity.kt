@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeLis
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setupEdgeToEdge()
-        setTheme(R.style.Theme_SmartDuino_Dark);
         // Инициализация ObjectBox
         ObjectBox.init(this)
 
@@ -54,7 +53,6 @@ class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeLis
 
         setupUI()
         setupViewPagerAndTabs()
-
     }
 
     private fun setupEdgeToEdge() {
@@ -150,6 +148,7 @@ class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeLis
 
         setupViewPagerAndTabs()
     }
+
 
     override fun onRoomAdded() {
         // Обновляем ViewPager при добавлении новой комнаты

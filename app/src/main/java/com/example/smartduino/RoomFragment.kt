@@ -38,9 +38,6 @@ class RoomFragment : Fragment() {
         val room = roomBox.get(roomId)
 
         val devices = room.devices
-//        val device = Device(name = "Устройство"+roomId, type = "LIGHT")
-//        device.room.target = room
-//        store.boxFor<Device>().put(device)
 
         val recyclerView: RecyclerView = view.findViewById(R.id.device_list_recycler_view)
         recyclerView.layoutManager = GridLayoutManager(requireContext(), 2)

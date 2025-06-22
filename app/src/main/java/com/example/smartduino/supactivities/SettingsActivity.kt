@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.smartduino.R
@@ -36,7 +37,7 @@ class SettingsActivity : AppCompatActivity() {
         // Инициализация SharedPreferences
         sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
-        // Настройка Toolbar
+        // Настройка Toolbar с кнопкой "назад"
         setupToolbar()
 
         // Загрузка текущих настроек
@@ -47,8 +48,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true) // Показываем кнопку "назад"
+            setDisplayShowHomeEnabled(true) // Разрешаем показ иконки "домой"
+            title = "Настройки" // Устанавливаем заголовок
+        }
+
+        // Обработчик нажатия на кнопку "назад"
         binding.toolbar.setNavigationOnClickListener {
-            finish() // Закрываем активность при нажатии на кнопку назад
+            onBackPressedDispatcher.onBackPressed()
         }
     }
 
@@ -93,7 +102,6 @@ class SettingsActivity : AppCompatActivity() {
             Log.d("Theme","Светлая тема")
         }
         AppCompatDelegate.setDefaultNightMode(mode)
-
     }
 
     companion object {

@@ -38,11 +38,6 @@
     <!-- Светлая тема -->
     <style name="Theme.SmartDuino" parent="Base.Theme.SmartDuino" />
 
-    <!-- Светлая тема -->
-    <style name="Theme.SmartDuino.Dark" parent="Base.Theme.SmartDuino">
-        <item name="colorPrimary">@color/error</item>
-    </style>
-
 
     <style name="AppBottomSheetDialogTheme" parent="Theme.MaterialComponents.Light.BottomSheetDialog">
         <item name="bottomSheetStyle">@style/AppModalBottomSheet</item>

@@ -21,14 +21,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:title="Настройки"
         app:titleTextColor="@android:color/white">
-
-        <ImageView
-            android:id="@+id/backButton"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="8dp"
-            android:src="@drawable/add"
-            android:tint="@android:color/white" />
     </com.google.android.material.appbar.MaterialToolbar>
 
     <!-- ScrollView для прокрутки настроек -->

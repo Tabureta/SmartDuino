@@ -66,8 +66,10 @@
         android:layout_height="48dp"
         android:layout_marginBottom="8dp"
         android:text="Save Changes"
-        app:icon="@drawable/add"
-        app:iconTint="?attr/colorPrimary"/>
+        app:icon="@drawable/check"
+        app:iconTint="?attr/colorPrimary"
+        app:strokeColor="?attr/colorPrimary"
+        app:strokeWidth="1dp"/>
 
     <!-- Новая кнопка удаления -->
     <com.google.android.material.button.MaterialButton
@@ -77,7 +79,7 @@
         android:layout_height="48dp"
         android:text="Delete Device"
         android:textColor="?attr/colorError"
-        app:icon="@drawable/add"
+        app:icon="@drawable/delete"
         app:iconTint="?attr/colorError"
         app:strokeColor="?attr/colorError"
         app:strokeWidth="1dp"/>
