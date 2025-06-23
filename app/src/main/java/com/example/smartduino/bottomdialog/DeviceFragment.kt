@@ -78,6 +78,7 @@ class DeviceFragment : BottomSheetDialogFragment() {
             "LIGHT" -> R.drawable.relay
             "THERMOSTAT" -> R.drawable.temperature_humid
             "CURTAIN" -> R.drawable.curtains
+            "HUB" -> R.drawable.wifi
             else -> R.drawable.wifi
         }
         binding.deviceIcon.setImageResource(iconRes)

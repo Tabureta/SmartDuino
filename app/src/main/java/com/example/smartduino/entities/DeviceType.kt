@@ -5,6 +5,7 @@ import com.example.smartduino.R
 enum class DeviceType(val displayName: String, val iconResId: Int) {
     LIGHT("Лампа", R.drawable.add),
     THERMOSTAT("Термостат", R.drawable.add),
+    HUB("Хаб", R.drawable.wifi),
     CURTAIN("Шторы", R.drawable.add);
 
     companion object {

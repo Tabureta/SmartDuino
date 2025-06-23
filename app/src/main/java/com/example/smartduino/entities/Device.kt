@@ -10,7 +10,9 @@ import io.objectbox.relation.ToOne
 data class Device(
     @Id var id: Long = 0,
     var name: String = "",
-    var type: String = ""
+    var type: String = "",
+    var ipAddress: String? = null,
+    var macAddress: String? = null
 ) {
     @Backlink(to = "device")
     lateinit var parameters: ToMany<DeviceParameter>

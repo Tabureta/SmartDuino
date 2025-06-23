@@ -1,6 +1,7 @@
 package com.example.smartduino
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -43,6 +44,7 @@ class RoomFragment : Fragment() {
         recyclerView.layoutManager = GridLayoutManager(requireContext(), 2)
 
         recyclerView.adapter = DeviceListAdapter(devices) { device ->
+            Log.d("DeviceClick", "Clicked device: ${device.name}, type: ${device.type}, id: ${device.id}")
             DeviceFragment.newInstance(device.id).show(
                 parentFragmentManager,
                 "device_fragment"

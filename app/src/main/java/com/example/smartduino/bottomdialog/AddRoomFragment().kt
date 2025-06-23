@@ -20,7 +20,6 @@ class AddRoomFragment : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Устанавливаем стиль для BottomSheet
         setStyle(STYLE_NORMAL, R.style.AppBottomSheetDialogTheme)
     }
 
@@ -34,9 +33,36 @@ class AddRoomFragment : BottomSheetDialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val v = inflater.inflate(R.layout.add_room_fragment, container, false)
-        val addButton = v.findViewById<Button>(R.id.add_room)
-        val editRoomName = v.findViewById<EditText>(R.id.edit_room_name)
+        return inflater.inflate(R.layout.add_room_fragment, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val addButton = view.findViewById<Button>(R.id.add_room)
+        val editRoomName = view.findViewById<EditText>(R.id.edit_room_name)
+
+        // Список готовых названий комнат и их кнопок
+        val roomButtons = listOf(
+            view.findViewById<Button>(R.id.btn_living_room),
+            view.findViewById<Button>(R.id.btn_bedroom),
+            view.findViewById<Button>(R.id.btn_kitchen),
+            view.findViewById<Button>(R.id.btn_bathroom),
+            view.findViewById<Button>(R.id.btn_kids_room),
+            view.findViewById<Button>(R.id.btn_study),
+            view.findViewById<Button>(R.id.btn_balcony),
+            view.findViewById<Button>(R.id.btn_hallway),
+            view.findViewById<Button>(R.id.btn_garage)
+        )
+
+        // Обработчики для готовых комнат
+        roomButtons.forEach { button ->
+            button.setOnClickListener {
+                val roomName = button.text.toString()
+                editRoomName.setText(roomName)
+                editRoomName.setSelection(roomName.length) // Курсор в конец текста
+            }
+        }
 
         addButton.setOnClickListener {
             val roomName = editRoomName.text.toString().trim()
@@ -46,25 +72,23 @@ class AddRoomFragment : BottomSheetDialogFragment() {
                 return@setOnClickListener
             }
 
-            val newRoom = Room(name = roomName)
-            store.boxFor<Room>().put(newRoom)
-            roomAddedListener?.onRoomAdded()
-            dismiss()
+            addNewRoom(roomName)
         }
 
-        return v
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        // Устанавливаем фиксированную высоту после создания view
+        // Устанавливаем фиксированную высоту
         view.post {
             val parent = view.parent as View
-            val params = parent.layoutParams
-            params.height = resources.getDimensionPixelSize(R.dimen.bottom_sheet_height)
-            parent.layoutParams = params
+            parent.layoutParams = parent.layoutParams.apply {
+                height = resources.getDimensionPixelSize(R.dimen.bottom_sheet_height)
+            }
         }
+    }
+
+    private fun addNewRoom(roomName: String) {
+        val newRoom = Room(name = roomName)
+        store.boxFor<Room>().put(newRoom)
+        roomAddedListener?.onRoomAdded()
+        dismiss()
     }
 
     override fun onDetach() {

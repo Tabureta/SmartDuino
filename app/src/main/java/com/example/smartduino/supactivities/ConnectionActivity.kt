@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.BluetoothLeScanner
@@ -63,7 +64,6 @@ class ConnectionActivity : AppCompatActivity() {
     private val wifiServiceUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
     private val ssidUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
     private val passUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
-    private val configServiceUUID = UUID.fromString("abcdefab-cdef-1234-5678-abcdefabcdef")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -158,13 +158,30 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private fun startBleScan() {
-        val filter = ScanFilter.Builder()
-            .setDeviceName("ESP32_BLE")
-            .build()
-        val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-        bleScanner.startScan(listOf(filter), settings, scanCallback)
+        try {
+            val filter = ScanFilter.Builder()
+                .setDeviceName("ESP32_Hub")
+                .build()
+            val settings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                .build()
+
+            Log.d("BLE", "Начинаем сканирование...")
+            bleScanner.startScan(listOf(filter), settings, scanCallback)
+
+            // Остановка сканирования через 10 секунд
+            Handler(Looper.getMainLooper()).postDelayed({
+                bleScanner.stopScan(scanCallback)
+                Log.d("BLE", "Сканирование остановлено по таймауту")
+            }, 10000)
+        } catch (e: SecurityException) {
+            Log.e("BLE", "Ошибка разрешений: ${e.message}")
+            Toast.makeText(this, "Нужны разрешения Bluetooth", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("BLE", "Ошибка сканирования: ${e.message}")
+            Toast.makeText(this, "Ошибка сканирования", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -178,23 +195,52 @@ class ConnectionActivity : AppCompatActivity() {
     private val gattCallback = object : BluetoothGattCallback() {
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.d("BLE", "Подключено. Ищем сервисы...")
-                bluetoothGatt = gatt
-                gatt.discoverServices()
+            runOnUiThread {
+                when (newState) {
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        Log.d("BLE", "Успешно подключено к устройству")
+                        bluetoothGatt = gatt
+                        gatt.discoverServices()
+                    }
+                    BluetoothProfile.STATE_DISCONNECTED -> {
+                        Log.e("BLE", "Соединение разорвано, статус: $status")
+                        Toast.makeText(this@ConnectionActivity, "Соединение потеряно", Toast.LENGTH_SHORT).show()
+                        gatt.close()
+                    }
+                }
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d("BLE", "Сервисы найдены")
+            runOnUiThread {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BLE", "Сервисы найдены: ${gatt.services.size}")
+                    gatt.services.forEach { service ->
+                        Log.d("BLE", "Service: ${service.uuid}")
+                        service.characteristics.forEach { char ->
+                            Log.d("BLE", "Characteristic: ${char.uuid}")
+                        }
+                    }
 
-                when (deviceType) {
-                    DEVICE_TYPE_HUB -> showFullConfigDialog(gatt)
-                    DEVICE_TYPE_NODE -> sendNodeSignal(gatt)
+                    when (deviceType) {
+                        DEVICE_TYPE_HUB -> showFullConfigDialog(gatt)
+                        DEVICE_TYPE_NODE -> sendNodeSignal(gatt)
+                    }
+                } else {
+                    Log.e("BLE", "Ошибка при поиске сервисов: $status")
+                    Toast.makeText(this@ConnectionActivity, "Ошибка поиска сервисов", Toast.LENGTH_SHORT).show()
+                    gatt.close()
                 }
-            } else {
-                Log.e("BLE", "Ошибка при поиске сервисов: $status")
+            }
+        }
+
+        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            runOnUiThread {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BLE", "Данные успешно записаны в характеристику")
+                } else {
+                    Log.e("BLE", "Ошибка записи в характеристику: $status")
+                }
             }
         }
     }
@@ -249,6 +295,7 @@ class ConnectionActivity : AppCompatActivity() {
             supportFragmentManager,
             "device_fragment"
         )
+        Log.d("id", deviceId.toString())
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)

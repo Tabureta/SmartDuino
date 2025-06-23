@@ -66,7 +66,6 @@ class DeviceListAdapter(
             is LightViewHolder -> holder.bind(device)
             is ThermostatViewHolder -> holder.bind(device)
             is CurtainViewHolder -> holder.bind(device)
-            is CurtainViewHolder -> holder.bind(device)
             is HubViewHolder -> holder.bind(device)
         }
     }
@@ -94,7 +93,7 @@ class DeviceListAdapter(
     inner class ThermostatViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         fun bind(device: Device) {
             itemView.findViewById<TextView>(R.id.deviceName).text = device.name
-
+            itemView.setOnClickListener { onDeviceClick(device) }
         }
     }
 
@@ -129,7 +128,7 @@ class DeviceListAdapter(
     inner class HubViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         fun bind(device: Device) {
             itemView.findViewById<TextView>(R.id.deviceName).text = device.name
-
+            itemView.setOnClickListener { onDeviceClick(device) }
         }
     }
 }

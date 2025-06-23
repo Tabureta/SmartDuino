@@ -10,23 +10,130 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Выберите: "
+        android:text="Выберите комнату:"
         android:textSize="25sp" />
 
+    <!-- Горизонтальный контейнер для первых трех кнопок -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_living_room"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Гостиная" />
+
+        <Button
+            android:id="@+id/btn_bedroom"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Спальня" />
+
+        <Button
+            android:id="@+id/btn_kitchen"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Кухня" />
+    </LinearLayout>
+
+    <!-- Горизонтальный контейнер для следующих трех кнопок -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="5dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_bathroom"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Ванная" />
+
+        <Button
+            android:id="@+id/btn_kids_room"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Детская" />
+
+        <Button
+            android:id="@+id/btn_study"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Кабинет" />
+    </LinearLayout>
+
+    <!-- Горизонтальный контейнер для последних трех кнопок -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="5dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btn_balcony"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Балкон" />
+
+        <Button
+            android:id="@+id/btn_hallway"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Коридор" />
+
+        <Button
+            android:id="@+id/btn_garage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:text="Гараж" />
+    </LinearLayout>
+
+    <!-- Поле для ввода своего названия -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Или введите свое название:"
+        android:textSize="16sp"
+        android:layout_marginTop="20dp" />
 
     <EditText
         android:id="@+id/edit_room_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
         android:ems="10"
         android:inputType="text"
-        android:text="Name" />
+        android:hint="Название комнаты" />
 
     <Button
         android:id="@+id/add_room"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:text="создать комнату" />
+        android:layout_marginTop="10dp"
+        android:text="Создать комнату" />
 
 </LinearLayout>
