@@ -21,8 +21,10 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -39,6 +41,7 @@ import com.example.smartduino.entities.Device
 import com.example.smartduino.ObjectBox
 import com.example.smartduino.ObjectBox.store
 import com.example.smartduino.bottomdialog.DeviceFragment
+import com.example.smartduino.databinding.ActivityConnectionBinding
 import com.google.android.material.button.MaterialButton
 import io.objectbox.kotlin.boxFor
 import okhttp3.Call
@@ -48,70 +51,226 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class ConnectionActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_DEVICE_TYPE = "extra_device_type"
         const val DEVICE_TYPE_HUB = "HUB"
-        const val DEVICE_TYPE_NODE = "node"
+        const val DEVICE_TYPE_NODE = "NODE"
+        const val DEVICE_TYPE_THERMOSTAT = "THERMOSTAT"
+        const val DEVICE_TYPE_RELAY = "RELAY"
+        const val DEVICE_TYPE_CURTAIN = "CURTAIN"
         const val PREF_TEST_CONNECTION = "test_connection"
+
+        // BLE константы
+        private const val BLE_DEVICE_NAME = "ESP32_Hub"
+        private val WIFI_SERVICE_UUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
+        private val SSID_CHAR_UUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
+        private val PASS_CHAR_UUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
+
+        // SSID сервисов
+        private const val SERVICE_ID_THERMOSTAT = "000002"
+        private const val SERVICE_ID_RELAY = "000003"
+        private const val SERVICE_ID_CURTAIN = "000004"
     }
+
+    private lateinit var binding: ActivityConnectionBinding
     private lateinit var waveAnimationHelper: WaveAnimationHelper
+    private lateinit var centerButton: Button
     private lateinit var deviceType: String
     private lateinit var sharedPref: SharedPreferences
 
     // BLE компоненты
-    private lateinit var bluetoothAdapter: BluetoothAdapter
-    private lateinit var bleScanner: BluetoothLeScanner
+    private var bleScanner: BluetoothLeScanner? = null
     private var bluetoothGatt: BluetoothGatt? = null
-
-    // UUID сервисов и характеристик
-    private val wifiServiceUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
-    private val ssidUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
-    private val passUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
+    private var scanCallback: ScanCallback? = null
+    private var gattCallback: BluetoothGattCallback? = null
 
     // HTTP клиент
-    private val okHttpClient = OkHttpClient()
+    private val okHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_connection)
+        binding = ActivityConnectionBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         deviceType = intent.getStringExtra(EXTRA_DEVICE_TYPE) ?: DEVICE_TYPE_NODE
         sharedPref = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
-        setupToolbar()
-        // Инициализация BLE только если не в тестовом режиме
-        if (!isTestModeEnabled()) {
-            bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
-            bleScanner = bluetoothAdapter.bluetoothLeScanner
-        }
-        waveAnimationHelper = WaveAnimationHelper(
-            container = findViewById(R.id.waveContainer),
-            waveDrawableRes = R.drawable.wave_circle
-        )
+        setupUI()
+        setupBluetooth()
+    }
 
-        val centerButton = findViewById<MaterialButton>(R.id.centerButton)
-        centerButton.setOnClickListener {
+    private fun setupUI() {
+        setupToolbar()
+        setupWaveAnimation()
+        setupClickListeners()
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.apply {
+            title = when (deviceType) {
+                DEVICE_TYPE_HUB -> "Подключение хаба"
+                else -> "Подключение устройства"
+            }
+            setDisplayHomeAsUpEnabled(true)
+        }
+        binding.toolbar.setNavigationOnClickListener { finish() }
+    }
+
+    private fun setupWaveAnimation() {
+        waveAnimationHelper = WaveAnimationHelper(
+            container = binding.waveContainer,
+            waveDrawableRes = R.drawable.wave_circle,
+        )
+    }
+
+    private fun setupClickListeners() {
+        binding.centerButton.setOnClickListener {
             if (waveAnimationHelper.isAnimating) {
-                waveAnimationHelper.stopWaveAnimation()
+                stopDiscovery()
             } else {
-                waveAnimationHelper.startWaveAnimation()
-                if (isTestModeEnabled()) {
-                    createTestDevice()
-                } else {
-                    if (deviceType == DEVICE_TYPE_NODE) {
-                        sendDiscoverRequest()
-                    } else {
-                        checkPermissionsAndScan()
+                startDiscovery()
+            }
+        }
+    }
+
+    private fun setupBluetooth() {
+        if (deviceType == DEVICE_TYPE_HUB) {
+            val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+            bleScanner = bluetoothManager.adapter.bluetoothLeScanner
+
+            gattCallback = object : BluetoothGattCallback() {
+                @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                    if (newState == BluetoothProfile.STATE_CONNECTED) {
+                        gatt.discoverServices()
+                    } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                        showError("Соединение потеряно")
+                    }
+                }
+
+                override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        showWifiConfigDialog(gatt)
+                    }
+                }
+            }
+
+            scanCallback = object : ScanCallback() {
+                @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
+                override fun onScanResult(callbackType: Int, result: ScanResult) {
+                    if (result.device?.name == BLE_DEVICE_NAME) {
+                        bleScanner?.stopScan(this)
+                        result.device.connectGatt(this@ConnectionActivity, false, gattCallback!!)
                     }
                 }
             }
         }
     }
 
-    private fun sendDiscoverRequest() {
+    private fun startDiscovery() {
+        waveAnimationHelper.startWaveAnimation()
+        binding.statusText.text = "Поиск устройств..."
+        binding.statusText.setTextColor(ContextCompat.getColor(this, R.color.primary))
+
+        if (isTestModeEnabled()) {
+            createTestDevice()
+            return
+        }
+
+        when (deviceType) {
+            DEVICE_TYPE_HUB -> startBleScan()
+            else -> sendHttpDiscoverRequest()
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
+    private fun stopDiscovery() {
+        waveAnimationHelper.stopWaveAnimation()
+        binding.statusText.text = "Готов к подключению"
+        binding.statusText.setTextColor(ContextCompat.getColor(this, R.color.on_primary_container))
+
+        bleScanner?.stopScan(scanCallback)
+        bluetoothGatt?.disconnect()
+    }
+
+    // Регион: BLE подключение хаба
+    private fun startBleScan() {
+        if (!checkBluetoothPermissions()) {
+            requestBluetoothPermissions()
+            return
+        }
+
+        try {
+            val filter = ScanFilter.Builder()
+                .setDeviceName(BLE_DEVICE_NAME)
+                .build()
+
+            val settings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build()
+
+            scanCallback?.let { bleScanner?.startScan(listOf(filter), settings, it) }
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                bleScanner?.stopScan(scanCallback)
+                showError("Хаб не найден")
+            }, 15000)
+
+        } catch (e: SecurityException) {
+            showError("Нет разрешений Bluetooth")
+        }
+    }
+
+    private fun showWifiConfigDialog(gatt: BluetoothGatt) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_wifi_input, null)
+        val etSsid = dialogView.findViewById<EditText>(R.id.ssidInput)
+        val etPassword = dialogView.findViewById<EditText>(R.id.passwordInput)
+
+        AlertDialog.Builder(this)
+            .setTitle("Настройка Wi-Fi")
+            .setView(dialogView)
+            .setPositiveButton("Подключить") { _, _ ->
+                sendWifiCredentials(gatt, etSsid.text.toString(), etPassword.text.toString())
+            }
+            .setNegativeButton("Отмена") { _, _ -> stopDiscovery() }
+            .setOnDismissListener { stopDiscovery() }
+            .show()
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun sendWifiCredentials(gatt: BluetoothGatt, ssid: String, password: String) {
+        try {
+            val service = gatt.getService(WIFI_SERVICE_UUID) ?: throw Exception("Service not found")
+            val ssidChar = service.getCharacteristic(SSID_CHAR_UUID) ?: throw Exception("SSID char not found")
+            val passChar = service.getCharacteristic(PASS_CHAR_UUID) ?: throw Exception("Password char not found")
+
+            ssidChar.value = ssid.toByteArray()
+            passChar.value = password.toByteArray()
+
+            gatt.writeCharacteristic(ssidChar)
+            gatt.writeCharacteristic(passChar)
+
+            createDevice("Smart Hub", DEVICE_TYPE_HUB)
+            showSuccess("Хаб успешно подключен!")
+
+        } catch (e: Exception) {
+            showError("Ошибка настройки: ${e.message}")
+        }
+    }
+    // Конец региона BLE
+
+    // Регион: HTTP подключение устройств
+    private fun sendHttpDiscoverRequest() {
         val request = Request.Builder()
             .url("http://192.168.1.49/discover")
             .build()
@@ -119,300 +278,136 @@ class ConnectionActivity : AppCompatActivity() {
         okHttpClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
-                    Toast.makeText(this@ConnectionActivity, "Ошибка подключения: ${e.message}", Toast.LENGTH_SHORT).show()
-                    Log.d("ИНтернт", e.message.toString())
-                    waveAnimationHelper.stopWaveAnimation()
+                    showError("Ошибка сети: ${e.message}")
+                    stopDiscovery()
                 }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
                     runOnUiThread {
-                        Toast.makeText(this@ConnectionActivity, "Ошибка сервера: ${response.code}", Toast.LENGTH_SHORT).show()
-                        waveAnimationHelper.stopWaveAnimation()
+                        showError("Ошибка сервера: ${response.code}")
+                        stopDiscovery()
                     }
                     return
                 }
 
                 try {
                     val responseData = response.body?.string() ?: ""
-                    Log.d("HTTP Response", responseData)
-
-                    // Парсим текстовый ответ
-                    val devices = parseTextResponse(responseData)
-
-                    runOnUiThread {
-                        if (devices.isNotEmpty()) {
-                            for (device in devices) {
-                                createRealDevice(device.name, DEVICE_TYPE_NODE)
-                            }
-                            Toast.makeText(this@ConnectionActivity, "Найдено ${devices.size} устройств", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this@ConnectionActivity, "Устройства не найдены", Toast.LENGTH_SHORT).show()
-                        }
-                        waveAnimationHelper.stopWaveAnimation()
-                    }
+                    parseAndCreateDevices(responseData)
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this@ConnectionActivity, "Ошибка обработки ответа: ${e.message}", Toast.LENGTH_SHORT).show()
-                        waveAnimationHelper.stopWaveAnimation()
+                        showError("Ошибка данных: ${e.message}")
+                        stopDiscovery()
                     }
                 }
             }
         })
     }
 
-    private fun parseTextResponse(response: String): List<DeviceInfo> {
-        val devices = mutableListOf<DeviceInfo>()
-        val lines = response.split("\n")
+    private fun parseAndCreateDevices(response: String) {
+        val devices = mutableListOf<DiscoveredDevice>()
+        var currentDevice: DiscoveredDevice? = null
 
-        var currentDevice: DeviceInfo? = null
-
-        for (line in lines) {
+        response.split("\n").forEach { line ->
             when {
-                line.trim().startsWith("Found devices:") -> continue
-                line.trim().matches(Regex("\\d+\\. .+")) -> {
-                    // Новая строка с устройством (например: "1. Sensor-1")
+                line.contains("Found devices:") -> return@forEach
+                line.matches(Regex("\\d+\\. .+")) -> {
                     currentDevice?.let { devices.add(it) }
-                    val name = line.substring(line.indexOf('.') + 1).trim()
-                    currentDevice = DeviceInfo(name)
+                    currentDevice = DiscoveredDevice(name = line.substringAfter('.').trim())
                 }
-                line.trim().startsWith("Address:") -> {
-                    // Адрес устройства (можно сохранить если нужно)
-                    currentDevice?.address = line.substringAfter("Address:").trim()
-                }
-                line.trim().startsWith("RSSI:") -> {
-                    // Уровень сигнала (можно сохранить если нужно)
-                    currentDevice?.rssi = line.substringAfter("RSSI:").trim()
-                }
-                line.trim().startsWith("Services:") -> {
-                    // Сервисы устройства (можно сохранить если нужно)
+                line.contains("Services:") -> {
                     currentDevice?.services = line.substringAfter("Services:").trim()
                 }
             }
         }
-
         currentDevice?.let { devices.add(it) }
-        return devices
-    }
 
-    data class DeviceInfo(
-        val name: String,
-        var address: String? = null,
-        var rssi: String? = null,
-        var services: String? = null
-    )
+        runOnUiThread {
+            if (devices.isEmpty()) {
+                showError("Устройства не найдены")
+                return@runOnUiThread
+            }
 
-    private fun isTestModeEnabled(): Boolean {
-        Log.d("isTestModeEnabled", sharedPref.getBoolean(PREF_TEST_CONNECTION, false).toString())
-        return sharedPref.getBoolean(PREF_TEST_CONNECTION, false)
-    }
+            devices.forEach { device ->
+                val type = when {
+                    device.services?.contains(SERVICE_ID_THERMOSTAT) == true -> DEVICE_TYPE_THERMOSTAT
+                    device.services?.contains(SERVICE_ID_RELAY) == true -> DEVICE_TYPE_RELAY
+                    device.services?.contains(SERVICE_ID_CURTAIN) == true -> DEVICE_TYPE_CURTAIN
+                    else -> DEVICE_TYPE_NODE
+                }
+                createDevice(device.name, type)
+            }
 
-    private fun setupToolbar() {
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-
-        // Устанавливаем заголовок в зависимости от типа устройства
-        val title = when (deviceType) {
-            DEVICE_TYPE_HUB -> "Подключение хаба"
-            DEVICE_TYPE_NODE -> "Подключение устройства"
-            else -> "Подключение"
+            showSuccess("Найдено ${devices.size} устройств")
+            stopDiscovery()
         }
-        supportActionBar?.title = title
+    }
+    // Конец региона HTTP
 
-        // Обработка нажатия на стрелку назад
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        toolbar.setNavigationOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
-        }
+    private fun createDevice(name: String, type: String) {
+        val device = Device(
+            name = name,
+            type = type,
+        )
+
+        store.boxFor(Device::class.java).put(device)
+        Log.i("Device", "Created: ${device.name} (${device.type})")
     }
 
     private fun createTestDevice() {
-        val device = Device(
-            name = "Test ${deviceType.uppercase()}",
-            type = deviceType
-        )
+        val testType = if (deviceType == DEVICE_TYPE_HUB) DEVICE_TYPE_HUB else DEVICE_TYPE_NODE
+        createDevice("Тестовое устройство", testType)
+        showSuccess("Тестовое устройство создано")
+        stopDiscovery()
+    }
 
-        store.boxFor<Device>().put(device)
+    private fun showError(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            binding.statusText.text = message
+            binding.statusText.setTextColor(ContextCompat.getColor(this, R.color.error))
+        }
+    }
 
-        Toast.makeText(
+    private fun showSuccess(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            binding.statusText.text = message
+            binding.statusText.setTextColor(ContextCompat.getColor(this, R.color.primary))
+        }
+    }
+
+    private fun isTestModeEnabled() = sharedPref.getBoolean(PREF_TEST_CONNECTION, false)
+
+    private fun checkBluetoothPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestBluetoothPermissions() {
+        ActivityCompat.requestPermissions(
             this,
-            "Тестовое устройство создано (${device.name})",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        waveAnimationHelper.stopWaveAnimation()
-        showDeviceFragment(device.id)
-    }
-
-    private fun checkPermissionsAndScan() {
-        val permissions = arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ),
+            101
         )
-        val missing = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 100)
-        } else {
-            startBleScan()
-        }
-    }
-
-    private fun startBleScan() {
-        try {
-            val filter = ScanFilter.Builder()
-                .setDeviceName("ESP32_Hub")
-                .build()
-            val settings = ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-                .build()
-
-            Log.d("BLE", "Начинаем сканирование...")
-            bleScanner.startScan(listOf(filter), settings, scanCallback)
-
-            // Остановка сканирования через 10 секунд
-            Handler(Looper.getMainLooper()).postDelayed({
-                bleScanner.stopScan(scanCallback)
-                Log.d("BLE", "Сканирование остановлено по таймауту")
-            }, 10000)
-        } catch (e: SecurityException) {
-            Log.e("BLE", "Ошибка разрешений: ${e.message}")
-            Toast.makeText(this, "Нужны разрешения Bluetooth", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Log.e("BLE", "Ошибка сканирования: ${e.message}")
-            Toast.makeText(this, "Ошибка сканирования", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private val scanCallback = object : ScanCallback() {
-        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
-            bleScanner.stopScan(this)
-            result.device.connectGatt(this@ConnectionActivity, false, gattCallback)
-        }
-    }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            runOnUiThread {
-                when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> {
-                        Log.d("BLE", "Успешно подключено к устройству")
-                        bluetoothGatt = gatt
-                        gatt.discoverServices()
-                    }
-                    BluetoothProfile.STATE_DISCONNECTED -> {
-                        Log.e("BLE", "Соединение разорвано, статус: $status")
-                        Toast.makeText(this@ConnectionActivity, "Соединение потеряно", Toast.LENGTH_SHORT).show()
-                        gatt.close()
-                    }
-                }
-            }
-        }
-
-        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-            runOnUiThread {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    Log.d("BLE", "Сервисы найдены: ${gatt.services.size}")
-                    gatt.services.forEach { service ->
-                        Log.d("BLE", "Service: ${service.uuid}")
-                        service.characteristics.forEach { char ->
-                            Log.d("BLE", "Characteristic: ${char.uuid}")
-                        }
-                    }
-
-                    when (deviceType) {
-                        DEVICE_TYPE_HUB -> showFullConfigDialog(gatt)
-                        DEVICE_TYPE_NODE -> sendNodeSignal(gatt)
-                    }
-                } else {
-                    Log.e("BLE", "Ошибка при поиске сервисов: $status")
-                    Toast.makeText(this@ConnectionActivity, "Ошибка поиска сервисов", Toast.LENGTH_SHORT).show()
-                    gatt.close()
-                }
-            }
-        }
-
-        override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            runOnUiThread {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    Log.d("BLE", "Данные успешно записаны в характеристику")
-                } else {
-                    Log.e("BLE", "Ошибка записи в характеристику: $status")
-                }
-            }
-        }
-    }
-
-    private fun showFullConfigDialog(gatt: BluetoothGatt) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_wifi_input, null)
-        val ssidInput = dialogView.findViewById<EditText>(R.id.ssidInput)
-        val passInput = dialogView.findViewById<EditText>(R.id.passwordInput)
-
-        AlertDialog.Builder(this)
-            .setTitle("Настройка подключения")
-            .setView(dialogView)
-            .setPositiveButton("Отправить") { _, _ ->
-                val ssid = ssidInput.text.toString()
-                val password = passInput.text.toString()
-                val device = "ESP32_HUB"
-                val url = "http://example.com"
-                val token = "my_secret_token"
-
-                sendCharacteristic(gatt, wifiServiceUUID, ssidUUID, ssid)
-                sendCharacteristic(gatt, wifiServiceUUID, passUUID, password)
-
-                // Создаем устройство после успешной настройки
-                createRealDevice(device, DEVICE_TYPE_HUB)
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
-    }
-
-    private fun sendNodeSignal(gatt: BluetoothGatt) {
-        val signal = "ACTIVATE"
-
-        // Создаем устройство после отправки сигнала
-        createRealDevice("ESP32_NODE", DEVICE_TYPE_NODE)
-    }
-
-    private fun createRealDevice(name: String, type: String) {
-        val device = Device(
-            name = name,
-            type = type
-        )
-
-        store.boxFor<Device>().put(device)
-        Toast.makeText(this, "Устройство $name создано", Toast.LENGTH_SHORT).show()
-        waveAnimationHelper.stopWaveAnimation()
-        showDeviceFragment(device.id)
-    }
-
-    private fun showDeviceFragment(deviceId: Long) {
-        DeviceFragment.newInstance(deviceId).show(
-            supportFragmentManager,
-            "device_fragment"
-        )
-        Log.d("id", deviceId.toString())
-    }
-
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun sendCharacteristic(gatt: BluetoothGatt, serviceUUID: UUID, charUUID: UUID, value: String) {
-        val service = gatt.getService(serviceUUID) ?: return
-        val characteristic = service.getCharacteristic(charUUID) ?: return
-        characteristic.setValue(value)
-        gatt.writeCharacteristic(characteristic)
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     override fun onDestroy() {
         super.onDestroy()
-        waveAnimationHelper.stopWaveAnimation()
+        stopDiscovery()
+        okHttpClient.dispatcher.cancelAll()
         bluetoothGatt?.close()
     }
+
+    data class DiscoveredDevice(
+        val name: String,
+        var services: String? = null
+    )
 }

@@ -17,7 +17,7 @@ class DeviceListAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
-        private const val TYPE_LIGHT = 0
+        private const val TYPE_RELAY = 0
         private const val TYPE_THERMOSTAT = 1
         private const val TYPE_CURTAIN = 2
         private const val TYPE_HUB = 3
@@ -25,18 +25,18 @@ class DeviceListAdapter(
 
     override fun getItemViewType(position: Int): Int {
         return when(devices[position].type) {
-            "LIGHT" -> TYPE_LIGHT
+            "RELAY" -> TYPE_RELAY
             "THERMOSTAT" -> TYPE_THERMOSTAT
             "CURTAIN" -> TYPE_CURTAIN
             "HUB" -> TYPE_HUB
-            else -> TYPE_LIGHT
+            else -> TYPE_RELAY
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when(viewType) {
-            TYPE_LIGHT -> {
+            TYPE_RELAY -> {
                 val view = inflater.inflate(R.layout.item_device_light, parent, false)
                 LightViewHolder(view)
             }
