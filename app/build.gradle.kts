@@ -54,4 +54,5 @@ dependencies {
     implementation("io.objectbox:objectbox-kotlin:3.7.1")
     implementation("io.objectbox:objectbox-android:3.7.1")
     implementation ("com.google.android.material:material:1.12.0")
+    implementation("com.squareup.okhttp3:okhttp:4.9.1")
 }

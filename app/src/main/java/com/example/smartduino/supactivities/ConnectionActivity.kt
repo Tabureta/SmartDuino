@@ -41,6 +41,12 @@ import com.example.smartduino.ObjectBox.store
 import com.example.smartduino.bottomdialog.DeviceFragment
 import com.google.android.material.button.MaterialButton
 import io.objectbox.kotlin.boxFor
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import java.io.IOException
 import java.util.UUID
 
 class ConnectionActivity : AppCompatActivity() {
@@ -64,6 +70,9 @@ class ConnectionActivity : AppCompatActivity() {
     private val wifiServiceUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ab")
     private val ssidUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ac")
     private val passUUID = UUID.fromString("12345678-1234-1234-1234-1234567890ad")
+
+    // HTTP клиент
+    private val okHttpClient = OkHttpClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,11 +101,107 @@ class ConnectionActivity : AppCompatActivity() {
                 if (isTestModeEnabled()) {
                     createTestDevice()
                 } else {
-                    checkPermissionsAndScan()
+                    if (deviceType == DEVICE_TYPE_NODE) {
+                        sendDiscoverRequest()
+                    } else {
+                        checkPermissionsAndScan()
+                    }
                 }
             }
         }
     }
+
+    private fun sendDiscoverRequest() {
+        val request = Request.Builder()
+            .url("http://192.168.1.49/discover")
+            .build()
+
+        okHttpClient.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this@ConnectionActivity, "Ошибка подключения: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Log.d("ИНтернт", e.message.toString())
+                    waveAnimationHelper.stopWaveAnimation()
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    runOnUiThread {
+                        Toast.makeText(this@ConnectionActivity, "Ошибка сервера: ${response.code}", Toast.LENGTH_SHORT).show()
+                        waveAnimationHelper.stopWaveAnimation()
+                    }
+                    return
+                }
+
+                try {
+                    val responseData = response.body?.string() ?: ""
+                    Log.d("HTTP Response", responseData)
+
+                    // Парсим текстовый ответ
+                    val devices = parseTextResponse(responseData)
+
+                    runOnUiThread {
+                        if (devices.isNotEmpty()) {
+                            for (device in devices) {
+                                createRealDevice(device.name, DEVICE_TYPE_NODE)
+                            }
+                            Toast.makeText(this@ConnectionActivity, "Найдено ${devices.size} устройств", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@ConnectionActivity, "Устройства не найдены", Toast.LENGTH_SHORT).show()
+                        }
+                        waveAnimationHelper.stopWaveAnimation()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this@ConnectionActivity, "Ошибка обработки ответа: ${e.message}", Toast.LENGTH_SHORT).show()
+                        waveAnimationHelper.stopWaveAnimation()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun parseTextResponse(response: String): List<DeviceInfo> {
+        val devices = mutableListOf<DeviceInfo>()
+        val lines = response.split("\n")
+
+        var currentDevice: DeviceInfo? = null
+
+        for (line in lines) {
+            when {
+                line.trim().startsWith("Found devices:") -> continue
+                line.trim().matches(Regex("\\d+\\. .+")) -> {
+                    // Новая строка с устройством (например: "1. Sensor-1")
+                    currentDevice?.let { devices.add(it) }
+                    val name = line.substring(line.indexOf('.') + 1).trim()
+                    currentDevice = DeviceInfo(name)
+                }
+                line.trim().startsWith("Address:") -> {
+                    // Адрес устройства (можно сохранить если нужно)
+                    currentDevice?.address = line.substringAfter("Address:").trim()
+                }
+                line.trim().startsWith("RSSI:") -> {
+                    // Уровень сигнала (можно сохранить если нужно)
+                    currentDevice?.rssi = line.substringAfter("RSSI:").trim()
+                }
+                line.trim().startsWith("Services:") -> {
+                    // Сервисы устройства (можно сохранить если нужно)
+                    currentDevice?.services = line.substringAfter("Services:").trim()
+                }
+            }
+        }
+
+        currentDevice?.let { devices.add(it) }
+        return devices
+    }
+
+    data class DeviceInfo(
+        val name: String,
+        var address: String? = null,
+        var rssi: String? = null,
+        var services: String? = null
+    )
 
     private fun isTestModeEnabled(): Boolean {
         Log.d("isTestModeEnabled", sharedPref.getBoolean(PREF_TEST_CONNECTION, false).toString())
@@ -137,10 +242,9 @@ class ConnectionActivity : AppCompatActivity() {
         ).show()
 
         waveAnimationHelper.stopWaveAnimation()
-        showDeviceFragment(device.id) // Заменяем finish() на открытие фрагмента
+        showDeviceFragment(device.id)
     }
 
-    // Остальные методы остаются без изменений
     private fun checkPermissionsAndScan() {
         val permissions = arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
@@ -262,7 +366,6 @@ class ConnectionActivity : AppCompatActivity() {
 
                 sendCharacteristic(gatt, wifiServiceUUID, ssidUUID, ssid)
                 sendCharacteristic(gatt, wifiServiceUUID, passUUID, password)
-
 
                 // Создаем устройство после успешной настройки
                 createRealDevice(device, DEVICE_TYPE_HUB)
