@@ -1,5 +1,9 @@
 package com.example.smartduino.adapters
 
+
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +14,13 @@ import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.example.smartduino.R
 import com.example.smartduino.entities.Device
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import java.io.IOException
+
 
 class DeviceListAdapter(
     private val devices: List<Device>,
@@ -91,9 +102,88 @@ class DeviceListAdapter(
 
     // ViewHolder для термостатов
     inner class ThermostatViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val deviceName: TextView = itemView.findViewById(R.id.deviceName)
+        private val tempValue: TextView = itemView.findViewById(R.id.temperature)
+        private val humidValue: TextView = itemView.findViewById(R.id.humidity)
+        private val okHttpClient = OkHttpClient()
+        private val handler = Handler(Looper.getMainLooper())
+        private var updateRunnable: Runnable? = null
+        private var updateInterval = 5000L // 5 секунд
+
         fun bind(device: Device) {
-            itemView.findViewById<TextView>(R.id.deviceName).text = device.name
+            deviceName.text = device.name
             itemView.setOnClickListener { onDeviceClick(device) }
+
+            tempValue.text = "--°C"
+            humidValue.text = "--%"
+            startPeriodicUpdates(device)
+        }
+
+        private fun startPeriodicUpdates(device: Device) {
+            stopPeriodicUpdates()
+            updateRunnable = object : Runnable {
+                override fun run() {
+                    fetchTemperature(device)
+                    fetchHumidity(device)
+                    handler.postDelayed(this, updateInterval)
+                }
+            }
+            handler.post(updateRunnable!!)
+        }
+
+        private fun stopPeriodicUpdates() {
+            updateRunnable?.let {
+                handler.removeCallbacks(it)
+                updateRunnable = null
+            }
+        }
+
+        private fun fetchTemperature(device: Device) {
+            val request = Request.Builder()
+                .url("http://192.168.1.49/?cmd=get_temp")
+                .build()
+
+            okHttpClient.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("Thermostat", "Ошибка получения температуры", e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (response.isSuccessful) {
+                        response.body?.string()?.let { temp ->
+                            itemView.post { // Используем post для обновления UI
+                                tempValue.text = "$temp°C"
+                            }
+                        }
+                    }
+                }
+            })
+        }
+
+        private fun fetchHumidity(device: Device) {
+            val request = Request.Builder()
+                .url("http://192.168.1.49/?cmd=get_humid")
+                .build()
+
+            okHttpClient.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("Thermostat", "Ошибка получения влажности", e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (response.isSuccessful) {
+                        response.body?.string()?.let { humid ->
+                            itemView.post { // Используем post для обновления UI
+                                humidValue.text = "$humid%"
+                            }
+                        }
+                    }
+                }
+            })
+        }
+
+        fun unbind() {
+            stopPeriodicUpdates()
         }
     }
 
