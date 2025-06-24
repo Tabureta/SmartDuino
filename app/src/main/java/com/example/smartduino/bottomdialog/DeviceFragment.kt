@@ -1,6 +1,7 @@
 package com.example.smartduino.bottomdialog
 
 import android.content.Context
+import android.content.DialogInterface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -25,6 +26,18 @@ class DeviceFragment : BottomSheetDialogFragment() {
     private lateinit var rooms: List<Room>
     private lateinit var roomNames: List<String>
     private var selectedRoomPosition = 0
+
+    private var onDismissListener: (() -> Unit)? = null
+
+    fun setOnDismissListener(listener: () -> Unit) {
+        this.onDismissListener = listener
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        onDismissListener?.invoke()
+    }
+
 
     companion object {
         private const val ARG_DEVICE_ID = "device_id"

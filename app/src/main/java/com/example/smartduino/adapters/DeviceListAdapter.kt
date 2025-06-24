@@ -49,7 +49,7 @@ class DeviceListAdapter(
         return when(viewType) {
             TYPE_RELAY -> {
                 val view = inflater.inflate(R.layout.item_device_light, parent, false)
-                LightViewHolder(view)
+                RelayViewHolder(view)
             }
             TYPE_THERMOSTAT -> {
                 val view = inflater.inflate(R.layout.item_device_thermostat, parent, false)
@@ -66,7 +66,7 @@ class DeviceListAdapter(
             else -> {
                 // Дефолтный вариант (например, для неизвестных типов)
                 val view = inflater.inflate(R.layout.item_device_light, parent, false)
-                LightViewHolder(view)
+                RelayViewHolder(view)
             }
         }
     }
@@ -74,7 +74,7 @@ class DeviceListAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val device = devices[position]
         when(holder) {
-            is LightViewHolder -> holder.bind(device)
+            is RelayViewHolder -> holder.bind(device)
             is ThermostatViewHolder -> holder.bind(device)
             is CurtainViewHolder -> holder.bind(device)
             is HubViewHolder -> holder.bind(device)
@@ -84,19 +84,60 @@ class DeviceListAdapter(
     override fun getItemCount() = devices.size
 
     // ViewHolder для ламп
-    inner class LightViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        fun bind(device: Device) {
-            itemView.findViewById<TextView>(R.id.deviceName).text = device.name
-            itemView.setOnClickListener { onDeviceClick(device) }
-            itemView.findViewById<Switch>(R.id.deviceSwitch).setOnCheckedChangeListener{ _, isChecked ->
+    inner class RelayViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val deviceName: TextView = itemView.findViewById(R.id.deviceName)
+        private val deviceSwitch: Switch = itemView.findViewById(R.id.deviceSwitch)
+        private val okHttpClient = OkHttpClient()
 
-                val message = if ( itemView.findViewById<Switch>(R.id.deviceSwitch).isChecked) "Свет включен" else "Свет выключен"
-                Toast.makeText(
-                    itemView.context,
-                    message,
-                    Toast.LENGTH_SHORT
-                ).show()
+        fun bind(device: Device) {
+            deviceName.text = device.name
+            deviceSwitch.setOnCheckedChangeListener(null) // Сначала удаляем старый listener
+
+            // Устанавливаем начальное состояние (если нужно)
+            // deviceSwitch.isChecked = device.currentState
+
+            deviceSwitch.setOnCheckedChangeListener { _, isChecked ->
+                val command = if (isChecked) "relay_on" else "relay_off"
+                sendRelayCommand(command, device)
+
+                val message = if (isChecked) "Реле включено" else "Реле выключено"
+                Toast.makeText(itemView.context, message, Toast.LENGTH_SHORT).show()
             }
+
+            itemView.setOnClickListener { onDeviceClick(device) }
+        }
+
+        private fun sendRelayCommand(command: String, device: Device) {
+            val request = Request.Builder()
+                .url("http://192.168.1.49/?cmd=$command")
+                .build()
+
+            okHttpClient.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    itemView.post {
+                        Toast.makeText(
+                            itemView.context,
+                            "Ошибка отправки команды: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // Возвращаем Switch в предыдущее состояние при ошибке
+                        deviceSwitch.isChecked = !deviceSwitch.isChecked
+                    }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        itemView.post {
+                            Toast.makeText(
+                                itemView.context,
+                                "Ошибка сервера: ${response.code}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            deviceSwitch.isChecked = !deviceSwitch.isChecked
+                        }
+                    }
+                }
+            })
         }
     }
 

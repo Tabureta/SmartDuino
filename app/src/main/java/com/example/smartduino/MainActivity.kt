@@ -23,13 +23,15 @@ import com.example.smartduino.entities.Device
 import com.example.smartduino.entities.Room
 import com.example.smartduino.interfaces.OnDeviceChangeListener
 import com.example.smartduino.interfaces.OnRoomAddedListener
+import com.example.smartduino.supactivities.ConnectionActivity
 import com.example.smartduino.supactivities.SettingsActivity
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import io.objectbox.kotlin.boxFor
 
 
-class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeListener {
+class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeListener,
+    ConnectionActivity.ConnectionActivityListener {
     private lateinit var viewPager: ViewPager2
     private lateinit var tabLayout: TabLayout
 
@@ -164,6 +166,7 @@ class MainActivity : AppCompatActivity(), OnRoomAddedListener, OnDeviceChangeLis
         // При необходимости закрыть BoxStore
         store.close()
     }
-
-
+    override fun onConnectionActivityClosed() {
+        setupViewPagerAndTabs()
+    }
 }

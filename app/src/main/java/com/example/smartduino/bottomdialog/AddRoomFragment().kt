@@ -20,7 +20,6 @@ class AddRoomFragment : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setStyle(STYLE_NORMAL, R.style.AppBottomSheetDialogTheme)
     }
 
     override fun onAttach(context: Context) {

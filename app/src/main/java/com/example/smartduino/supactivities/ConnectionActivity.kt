@@ -434,7 +434,14 @@ class ConnectionActivity : AppCompatActivity() {
     }
 
     private fun showDeviceFragment(deviceId: Long) {
-        DeviceFragment.newInstance(deviceId).show(
+        val fragment = DeviceFragment.newInstance(deviceId)
+
+        // Добавляем слушатель закрытия фрагмента
+        fragment.setOnDismissListener {
+            finish() // Закрываем активность при закрытии фрагмента
+        }
+
+        fragment.show(
             supportFragmentManager,
             "device_fragment"
         )
@@ -454,5 +461,8 @@ class ConnectionActivity : AppCompatActivity() {
         super.onDestroy()
         waveAnimationHelper.stopWaveAnimation()
         bluetoothGatt?.close()
+    }
+    interface ConnectionActivityListener {
+        fun onConnectionActivityClosed()
     }
 }
